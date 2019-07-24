@@ -44,7 +44,7 @@ $ docker build -t ubuntu-python:xenial-3.5 -f xenial/3.5/Dockerfile .
 $ docker build -t ubuntu-python:bionic-3.6 -f bionic/3.6/Dockerfile .
 
 # 3) Building python3.7 on Ubuntu 16.04 Xenial slim version
-$ docker build -t ubuntu-python:xenial-3.6-slim -f xenial/3.7/slim/Dockerfile .
+$ docker build -t ubuntu-python:xenial-3.7-slim -f xenial/3.7/slim/Dockerfile .
 ```
 ## References
 * [docker-library/python](https://github.com/docker-library/python)
