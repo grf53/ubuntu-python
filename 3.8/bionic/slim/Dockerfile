@@ -14,13 +14,16 @@ ENV PATH /usr/local/bin:$PATH
 ENV LANG C.UTF-8
 
 # runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN set -eux; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
 		ca-certificates \
 		netbase \
-	&& rm -rf /var/lib/apt/lists/*
+	; \
+	rm -rf /var/lib/apt/lists/*
 
 ENV GPG_KEY E3FF2839C048B25C084DEBE9B26995E310250568
-ENV PYTHON_VERSION 3.8.0
+ENV PYTHON_VERSION 3.8.9
 
 RUN set -ex \
 	\
@@ -28,6 +31,7 @@ RUN set -ex \
 	&& apt-get update && apt-get install -y --no-install-recommends \
 		dpkg-dev \
 		gcc \
+		libbluetooth-dev \
 		libbz2-dev \
 		libc6-dev \
 		libexpat1-dev \
@@ -50,7 +54,7 @@ RUN set -ex \
 	&& wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
 	&& wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc" \
 	&& export GNUPGHOME="$(mktemp -d)" \
-	&& gpg --batch --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY" \
+	&& gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "$GPG_KEY" \
 	&& gpg --batch --verify python.tar.xz.asc python.tar.xz \
 	&& { command -v gpgconf > /dev/null && gpgconf --kill all || :; } \
 	&& rm -rf "$GNUPGHOME" python.tar.xz.asc \
@@ -64,12 +68,23 @@ RUN set -ex \
 		--build="$gnuArch" \
 		--enable-loadable-sqlite-extensions \
 		--enable-optimizations \
+		--enable-option-checking=fatal \
 		--enable-shared \
 		--with-system-expat \
 		--with-system-ffi \
 		--without-ensurepip \
 	&& make -j "$(nproc)" \
+		LDFLAGS="-Wl,--strip-all" \
 	&& make install \
+	&& rm -rf /usr/src/python \
+	\
+	&& find /usr/local -depth \
+		\( \
+			\( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
+			-o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name '*.a' \) \) \
+			-o \( -type f -a -name 'wininst-*.exe' \) \
+		\) -exec rm -rf '{}' + \
+	\
 	&& ldconfig \
 	\
 	&& apt-mark auto '.*' > /dev/null \
@@ -84,14 +99,6 @@ RUN set -ex \
 	&& apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
 	&& rm -rf /var/lib/apt/lists/* \
 	\
-	&& find /usr/local -depth \
-		\( \
-			\( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
-			-o \
-			\( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
-		\) -exec rm -rf '{}' + \
-	&& rm -rf /usr/src/python \
-	\
 	&& python3 --version
 
 # make some useful symlinks that are expected to exist
@@ -102,10 +109,10 @@ RUN cd /usr/local/bin \
 	&& ln -s python3-config python-config
 
 # if this is called "PIP_VERSION", pip explodes with "ValueError: invalid truth value '<VERSION>'"
-ENV PYTHON_PIP_VERSION 19.3.1
+ENV PYTHON_PIP_VERSION 21.1
 # https://github.com/pypa/get-pip
-ENV PYTHON_GET_PIP_URL https://github.com/pypa/get-pip/raw/ffe826207a010164265d9cc807978e3604d18ca0/get-pip.py
-ENV PYTHON_GET_PIP_SHA256 b86f36cc4345ae87bfd4f10ef6b2dbfa7a872fbff70608a1e43944d283fd0eee
+ENV PYTHON_GET_PIP_URL https://github.com/pypa/get-pip/raw/ab9dde151f662745c13461f00c453dcf32a51ea9/public/get-pip.py
+ENV PYTHON_GET_PIP_SHA256 0ed17e859b835ad5bf00851f4dc8bbc3520c13dfff6c131d410cdb3a92ff0af9
 
 RUN set -ex; \
 	\
